@@ -107,7 +107,7 @@ function onQuoteCreated(created) {
     <header class="main-header">
       <div class="header-row">
         <div>
-          <h1 class="main-title">Cotizaciones del portal</h1>
+          <h1 class="main-title">Cotizaciones</h1>
           <p class="main-subtitle">Solicitudes con productos, servicios extra, origen y destino</p>
         </div>
         <div class="header-actions">
