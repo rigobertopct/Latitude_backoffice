@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import Swal from 'sweetalert2'
 import api from '../api/client'
+import AdminQuoteCreateForm from '../components/AdminQuoteCreateForm.vue'
+
+const route = useRoute()
 
 const loading = ref(false)
 const items = ref([])
@@ -10,6 +13,7 @@ const statusFilter = ref('')
 const search = ref('')
 const detailOpen = ref(false)
 const selected = ref(null)
+const createOpen = ref(false)
 
 const filtered = computed(() => {
   let list = items.value
@@ -87,7 +91,15 @@ async function setStatus(st) {
 }
 
 watch(statusFilter, () => load())
-onMounted(load)
+onMounted(() => {
+  load()
+  if (route.query.nueva === '1') createOpen.value = true
+})
+
+function onQuoteCreated(created) {
+  load()
+  if (created?.id) openDetail(created.id)
+}
 </script>
 
 <template>
@@ -98,7 +110,10 @@ onMounted(load)
           <h1 class="main-title">Cotizaciones del portal</h1>
           <p class="main-subtitle">Solicitudes con productos, servicios extra, origen y destino</p>
         </div>
-        <RouterLink to="/admin/catalogo-cotizaciones" class="btn-tonal">Gestionar catálogo</RouterLink>
+        <div class="header-actions">
+          <button type="button" class="btn-filled" @click="createOpen = true">+ Nueva cotización</button>
+          <RouterLink to="/admin/catalogo-cotizaciones" class="btn-tonal">Gestionar catálogo</RouterLink>
+        </div>
       </div>
     </header>
     <div class="main-content">
@@ -143,12 +158,14 @@ onMounted(load)
               </td>
             </tr>
             <tr v-if="!filtered.length">
-              <td colspan="7" class="empty">No hay cotizaciones. Configure el catálogo y espere solicitudes desde el sitio web.</td>
+              <td colspan="7" class="empty">No hay cotizaciones. Cree una con «Nueva cotización» o espere solicitudes del sitio web.</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+
+    <AdminQuoteCreateForm :open="createOpen" @close="createOpen = false" @created="onQuoteCreated" />
 
     <div v-if="detailOpen && selected" class="modal-backdrop" @click.self="closeDetail">
       <div class="modal-sheet mdc-elevated">
@@ -212,6 +229,21 @@ onMounted(load)
   border-bottom: 1px solid var(--border-color);
 }
 .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.btn-filled {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--latitude-white);
+  background: var(--latitude-orange);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+}
+.btn-filled:hover { filter: brightness(1.06); }
 .main-title { margin: 0; font-size: 1.35rem; font-weight: 500; color: var(--text-primary); }
 .main-subtitle { margin: 0.35rem 0 0; font-size: 0.875rem; color: var(--text-secondary); }
 .btn-tonal {

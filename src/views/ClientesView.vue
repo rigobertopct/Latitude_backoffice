@@ -1,7 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Swal from 'sweetalert2'
 import api from '../api/client'
+
+const route = useRoute()
 
 const clientes = ref([])
 const loading = ref(false)
@@ -185,7 +188,10 @@ watch(search, () => {
   if (searchTimeout) clearTimeout(searchTimeout)
   searchTimeout = setTimeout(loadClientes, 400)
 })
-onMounted(loadClientes)
+onMounted(() => {
+  loadClientes()
+  if (route.query.nuevo === '1') openNew()
+})
 </script>
 
 <template>

@@ -1,4 +1,6 @@
 <script setup>
+import { RouterLink } from 'vue-router'
+
 // Datos de ejemplo para gráficos
 const ventasMeses = [42, 58, 65, 72, 68, 85]
 const mesesLabels = ['Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar']
@@ -20,6 +22,27 @@ const ultimosEnvios = [
       </header>
 
       <div class="main-content">
+        <section class="quick-actions">
+          <h2 class="quick-actions-title">Acciones rápidas</h2>
+          <div class="quick-actions-grid">
+            <RouterLink :to="{ name: 'clientes', query: { nuevo: '1' } }" class="action-card">
+              <span class="action-icon">👤</span>
+              <span class="action-label">Nuevo cliente</span>
+              <span class="action-desc">Alta manual en la base de clientes</span>
+            </RouterLink>
+            <RouterLink :to="{ name: 'cotizaciones', query: { nueva: '1' } }" class="action-card action-card-highlight">
+              <span class="action-icon">📋</span>
+              <span class="action-label">Nueva cotización</span>
+              <span class="action-desc">Crear solicitud desde administración</span>
+            </RouterLink>
+            <RouterLink :to="{ name: 'catalogo-cotizaciones' }" class="action-card">
+              <span class="action-icon">📦</span>
+              <span class="action-label">Catálogo cotizar</span>
+              <span class="action-desc">Productos, rutas y servicios</span>
+            </RouterLink>
+          </div>
+        </section>
+
         <!-- Cards de métricas -->
         <div class="stats-cards">
           <div class="stat-card stat-card-highlight">
@@ -171,6 +194,67 @@ const ultimosEnvios = [
 .main-content {
   padding: 2rem;
   flex: 1;
+}
+
+.quick-actions {
+  margin-bottom: 2rem;
+}
+
+.quick-actions-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  background: var(--card-bg);
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  border-left: 4px solid var(--latitude-blue-gray);
+  box-shadow: 0 4px 14px rgba(40, 74, 129, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(40, 74, 129, 0.12);
+}
+
+.action-card-highlight {
+  border-left-color: var(--latitude-orange);
+}
+
+.action-icon {
+  font-size: 1.5rem;
+}
+
+.action-label {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.action-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Stats cards */
