@@ -125,6 +125,7 @@ function onQuoteCreated(created) {
           <option value="aprobada">Aprobada</option>
           <option value="rechazada">Rechazada</option>
         </select>
+        <button type="button" class="btn-filled btn-filled--compact" @click="createOpen = true">+ Nueva cotización</button>
         <button type="button" class="btn-icon-text" :disabled="loading" @click="load">Actualizar</button>
       </div>
 
@@ -244,6 +245,12 @@ function onQuoteCreated(created) {
   cursor: pointer;
 }
 .btn-filled:hover { filter: brightness(1.06); }
+.btn-filled--compact {
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  border-radius: 20px;
+}
 .main-title { margin: 0; font-size: 1.35rem; font-weight: 500; color: var(--text-primary); }
 .main-subtitle { margin: 0.35rem 0 0; font-size: 0.875rem; color: var(--text-secondary); }
 .btn-tonal {
