@@ -40,6 +40,11 @@ const ultimosEnvios = [
               <span class="action-label">Catálogo cotizar</span>
               <span class="action-desc">Productos, rutas y servicios</span>
             </RouterLink>
+            <RouterLink :to="{ name: 'reportes' }" class="action-card">
+              <span class="action-icon">📋</span>
+              <span class="action-label">Reportes</span>
+              <span class="action-desc">Ventas, envios y lientes activos</span>
+            </RouterLink>
           </div>
         </section>
 

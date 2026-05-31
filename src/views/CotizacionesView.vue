@@ -111,7 +111,6 @@ function onQuoteCreated(created) {
           <p class="main-subtitle">Solicitudes con productos, servicios extra, origen y destino</p>
         </div>
         <div class="header-actions">
-          <button type="button" class="btn-filled" @click="createOpen = true">+ Nueva cotización</button>
           <RouterLink to="/admin/catalogo-cotizaciones" class="btn-tonal">Gestionar catálogo</RouterLink>
         </div>
       </div>

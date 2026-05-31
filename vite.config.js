@@ -9,12 +9,14 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiTarget = env.VITE_PROXY_API || env.VITE_API_URL || 'http://127.0.0.1:8000'
 
+  const plugins = [vue()]
+  if (mode !== 'production') {
+    plugins.push(vueDevTools())
+  }
+
   return {
     base: mode === 'production' ? '/backoffice/' : '/',
-    plugins: [
-      vue(),
-      vueDevTools(),
-    ],
+    plugins,
     server: {
       proxy: {
         '/api': {

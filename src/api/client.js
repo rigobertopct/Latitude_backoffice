@@ -8,7 +8,7 @@ const rawUrl = String(import.meta.env.VITE_API_URL ?? '').trim()
 const BASE_URL = (() => {
   if (import.meta.env.DEV) return ''
   if (!rawUrl) {
-    console.warn('[api] VITE_API_URL no está definido en producción')
+    // Mismo origen: Nginx proxy /api → backend
     return ''
   }
   return (rawUrl.startsWith('http') ? rawUrl : `http://${rawUrl}`).replace(/\/+$/, '')
