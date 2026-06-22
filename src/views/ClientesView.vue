@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Swal from 'sweetalert2'
 import api from '../api/client'
+import { validateOptionalPhone } from '../utils/phone'
 
 const route = useRoute()
 
@@ -95,14 +96,21 @@ async function submitForm(e) {
     await Swal.fire({ icon: 'warning', title: 'Datos requeridos', text: 'Nombre de empresa y email son obligatorios.' })
     return
   }
+  const phoneCheck = validateOptionalPhone(form.value.telefono)
+  if (!phoneCheck.ok) {
+    formError.value = phoneCheck.message
+    await Swal.fire({ icon: 'warning', title: 'Teléfono', text: phoneCheck.message })
+    return
+  }
   saving.value = true
   try {
+    const telefono = phoneCheck.value
     if (editingId.value) {
       await api.patch(`/api/clientes/${editingId.value}`, {
         nombre_empresa: form.value.nombre_empresa.trim(),
         nombre_contacto: form.value.nombre_contacto?.trim() || null,
         email: form.value.email.trim(),
-        telefono: form.value.telefono?.trim() || null,
+        telefono,
         direccion: form.value.direccion?.trim() || null,
         ciudad: form.value.ciudad?.trim() || null,
         pais: form.value.pais?.trim() || null,
@@ -113,7 +121,7 @@ async function submitForm(e) {
         nombre_empresa: form.value.nombre_empresa.trim(),
         nombre_contacto: form.value.nombre_contacto?.trim() || null,
         email: form.value.email.trim(),
-        telefono: form.value.telefono?.trim() || null,
+        telefono,
         direccion: form.value.direccion?.trim() || null,
         ciudad: form.value.ciudad?.trim() || null,
         pais: form.value.pais?.trim() || null,
@@ -282,7 +290,15 @@ onMounted(() => {
           </div>
           <div class="form-group">
             <label class="form-label">Teléfono</label>
-            <input v-model="form.telefono" type="text" class="form-input" />
+            <input
+              v-model="form.telefono"
+              type="tel"
+              class="form-input"
+              autocomplete="tel"
+              placeholder="Ej. +1 (305) 775-9737"
+              maxlength="50"
+            />
+            <p class="form-hint">Opcional. Mínimo 8 dígitos; solo números, espacios y + - ( ).</p>
           </div>
           <div class="form-group">
             <label class="form-label">Dirección</label>
@@ -361,6 +377,7 @@ onMounted(() => {
 .form-label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem; }
 .form-input { width: 100%; padding: 0.6rem 0.75rem; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1rem; background: var(--card-bg); color: var(--text-primary); }
 .form-input:focus { outline: none; border-color: var(--latitude-orange); }
+.form-hint { margin: 0.35rem 0 0; font-size: 0.78rem; color: var(--text-secondary); }
 .form-group-checkbox { margin-bottom: 1.25rem; }
 .checkbox-wrap { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; color: var(--text-primary); }
 .checkbox-input { accent-color: var(--latitude-orange); }

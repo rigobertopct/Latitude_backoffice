@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import Swal from 'sweetalert2'
 import api from '../api/client'
+import { validateOptionalPhone } from '../utils/phone'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -139,6 +140,11 @@ async function submit() {
     await Swal.fire({ icon: 'warning', title: 'Email', text: 'El email del contacto es obligatorio.' })
     return
   }
+  const phoneCheck = validateOptionalPhone(clientPhone.value)
+  if (!phoneCheck.ok) {
+    await Swal.fire({ icon: 'warning', title: 'Teléfono', text: phoneCheck.message })
+    return
+  }
   if (!originId.value || !destinationId.value || !quoteDateRequested.value) {
     await Swal.fire({ icon: 'warning', title: 'Ruta', text: 'Complete origen, destino y fecha.' })
     return
@@ -165,7 +171,7 @@ async function submit() {
   } else {
     body.client_email = clientEmail.value.trim()
     body.client_name = clientName.value.trim() || null
-    body.client_phone = clientPhone.value.trim() || null
+    body.client_phone = phoneCheck.value
   }
 
   saving.value = true
@@ -229,7 +235,8 @@ async function submit() {
               </div>
               <div class="form-group">
                 <label class="lbl">Teléfono</label>
-                <input v-model="clientPhone" type="text" class="field-input full" />
+                <input v-model="clientPhone" type="tel" class="field-input full" autocomplete="tel" maxlength="50" placeholder="Ej. +1 (305) 775-9737" />
+                <p class="field-hint">Opcional. Mínimo 8 dígitos.</p>
               </div>
             </div>
           </template>
@@ -375,6 +382,7 @@ async function submit() {
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
 .lbl { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 0.35rem; color: var(--text-primary); }
+.field-hint { margin: 0.3rem 0 0; font-size: 0.75rem; color: var(--text-secondary); }
 .field-input.full { width: 100%; box-sizing: border-box; }
 .field-input {
   padding: 0.55rem 0.75rem;
