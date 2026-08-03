@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import Swal from 'sweetalert2'
 import api from '../api/client'
 
@@ -87,43 +87,98 @@ async function loadReport(tipo) {
   }
 }
 
-function csvEscape(val) {
-  const s = val == null ? '' : String(val)
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-  return s
-}
-
+/**
+ * Exporta como hoja Excel (.xls vía HTML tabla).
+ * Una fila = un registro; cada campo en su columna (sin depender del separador CSV del Excel ES).
+ */
 function exportExcel() {
   if (!preview.value?.rows) return
   const cols = preview.value.columns
-  const lines = []
-  lines.push(cols.map((c) => csvEscape(c.label)).join(','))
-  for (const row of preview.value.rows) {
-    lines.push(cols.map((c) => csvEscape(formatCell(c, row))).join(','))
-  }
-  const sum = preview.value.summary || {}
-  lines.push('')
-  lines.push(csvEscape('Resumen'))
-  lines.push(`Cantidad,${sum.cantidad ?? preview.value.rows.length}`)
-  if (sum.total != null) lines.push(`Total USD,${sum.total}`)
-  if (sum.activos != null) lines.push(`Activos,${sum.activos}`)
-  if (sum.inactivos != null) lines.push(`Inactivos,${sum.inactivos}`)
+  const p = preview.value
+  const sum = p.summary || {}
 
-  const bom = '\uFEFF'
-  const blob = new Blob([bom + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+  const th = cols.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('')
+  const trs = p.rows
+    .map((row) => {
+      const tds = cols
+        .map((c) => {
+          const raw = row[c.key]
+          const isNum = c.key === 'total' && typeof raw === 'number'
+          const text = isNum
+            ? String(raw)
+            : escapeHtml(raw == null || raw === '' ? '' : String(raw))
+          return isNum
+            ? `<td style="mso-number-format:'0.00';">${text}</td>`
+            : `<td>${text}</td>`
+        })
+        .join('')
+      return `<tr>${tds}</tr>`
+    })
+    .join('')
+
+  let resumenRows = `<tr><td colspan="${cols.length}"></td></tr>`
+  resumenRows += `<tr><td><b>Resumen</b></td>${'<td></td>'.repeat(Math.max(0, cols.length - 1))}</tr>`
+  resumenRows += `<tr><td>Cantidad</td><td>${sum.cantidad ?? p.rows.length}</td>${'<td></td>'.repeat(Math.max(0, cols.length - 2))}</tr>`
+  if (sum.total != null) {
+    resumenRows += `<tr><td>Total USD</td><td style="mso-number-format:'0.00';">${sum.total}</td>${'<td></td>'.repeat(Math.max(0, cols.length - 2))}</tr>`
+  }
+  if (sum.activos != null) {
+    resumenRows += `<tr><td>Activos</td><td>${sum.activos}</td>${'<td></td>'.repeat(Math.max(0, cols.length - 2))}</tr>`
+    resumenRows += `<tr><td>Inactivos</td><td>${sum.inactivos ?? 0}</td>${'<td></td>'.repeat(Math.max(0, cols.length - 2))}</tr>`
+  }
+  if (sum.por_estado) {
+    for (const [k, v] of Object.entries(sum.por_estado)) {
+      resumenRows += `<tr><td>Estado ${escapeHtml(k)}</td><td>${v}</td>${'<td></td>'.repeat(Math.max(0, cols.length - 2))}</tr>`
+    }
+  }
+
+  const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8" />
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>${escapeHtml(p.tipo)}</x:Name>
+<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+</head>
+<body>
+<h3>${escapeHtml(p.titulo)}</h3>
+<p>Período: ${escapeHtml(periodLabel.value)}</p>
+<table border="1">
+<thead><tr>${th}</tr></thead>
+<tbody>${trs || `<tr><td colspan="${cols.length}">Sin datos</td></tr>`}${resumenRows}</tbody>
+</table>
+</body>
+</html>`
+
+  const blob = new Blob(['\uFEFF' + html], {
+    type: 'application/vnd.ms-excel;charset=utf-8;',
+  })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${preview.value.tipo}_${desde.value || 'inicio'}_${hasta.value || 'hoy'}.csv`
+  a.download = `${p.tipo}_${desde.value || 'inicio'}_${hasta.value || 'hoy'}.xls`
+  document.body.appendChild(a)
   a.click()
+  a.remove()
   URL.revokeObjectURL(url)
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function buildPrintHtml() {
   const p = preview.value
   if (!p) return ''
   const cols = p.columns
-  const head = cols.map((c) => `<th>${c.label}</th>`).join('')
+  const head = cols.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('')
   const body = p.rows
     .map(
       (row) =>
@@ -147,17 +202,13 @@ function buildPrintHtml() {
   <meta charset="utf-8" />
   <title>${escapeHtml(p.titulo)}</title>
   <style>
-    body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 24px; }
+    body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 24px; margin: 0; }
     h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
     .meta { color: #555; margin-bottom: 1.25rem; font-size: 0.9rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th, td { border: 1px solid #ccc; padding: 0.45rem 0.6rem; text-align: left; }
     th { background: #f0f2f5; }
     .summary { margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid #ddd; }
-    @media print {
-      body { padding: 0; }
-      .no-print { display: none; }
-    }
   </style>
 </head>
 <body>
@@ -168,39 +219,59 @@ function buildPrintHtml() {
     <tbody>${body || '<tr><td colspan="' + cols.length + '">Sin datos</td></tr>'}</tbody>
   </table>
   <div class="summary">${resumen}</div>
-  <script>window.onload = function () { window.focus(); window.print(); }<\/script>
 </body>
 </html>`
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
+/** Imprime sin window.open (evita bloqueo de ventanas emergentes). */
 function exportPdfOrPrint() {
   if (!preview.value) return
-  const w = window.open('', '_blank', 'noopener,noreferrer,width=960,height=720')
-  if (!w) {
+
+  let iframe = document.getElementById('report-print-frame')
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.id = 'report-print-frame'
+    iframe.setAttribute('title', 'Impresión de reporte')
+    iframe.style.cssText =
+      'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;'
+    document.body.appendChild(iframe)
+  }
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document
+  if (!doc) {
     Swal.fire({
-      icon: 'warning',
-      title: 'Ventana bloqueada',
-      text: 'Permite ventanas emergentes para imprimir o guardar como PDF.',
+      icon: 'error',
+      title: 'Impresión',
+      text: 'No se pudo preparar la impresión. Prueba con otro navegador.',
     })
     return
   }
-  w.document.open()
-  w.document.write(buildPrintHtml())
-  w.document.close()
-}
 
-onMounted(() => {
-  // fechas por defecto ya cargadas
-})
-</script>
+  doc.open()
+  doc.write(buildPrintHtml())
+  doc.close()
+
+  const win = iframe.contentWindow
+  const doPrint = () => {
+    try {
+      win.focus()
+      win.print()
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Impresión',
+        text: err?.message || 'No se pudo abrir el diálogo de impresión.',
+      })
+    }
+  }
+
+  // Esperar a que el iframe cargue el contenido
+  if (iframe.contentDocument?.readyState === 'complete') {
+    setTimeout(doPrint, 150)
+  } else {
+    iframe.onload = () => setTimeout(doPrint, 150)
+  }
+}</script>
 
 <template>
   <main class="main">
@@ -248,7 +319,7 @@ onMounted(() => {
             <p class="preview-meta"><strong>Período:</strong> {{ periodLabel }}</p>
           </div>
           <div class="export-actions">
-            <button type="button" class="btn-secondary" @click="exportExcel">Exportar Excel (CSV)</button>
+            <button type="button" class="btn-secondary" @click="exportExcel">Exportar Excel</button>
             <button type="button" class="btn-secondary" @click="exportPdfOrPrint">PDF / Imprimir</button>
           </div>
         </div>
