@@ -1,93 +1,161 @@
 <script setup>
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import Swal from 'sweetalert2'
+import api from '../api/client'
 
-// Datos de ejemplo para gráficos
-const ventasMeses = [42, 58, 65, 72, 68, 85]
-const mesesLabels = ['Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar']
-const ultimosEnvios = [
-  { id: 'LT-2847', cliente: 'Importadora Costa', destino: 'Guatemala', estado: 'En tránsito', fecha: '05/03/2026' },
-  { id: 'LT-2846', cliente: 'Auto Express', destino: 'Colombia', estado: 'Entregado', fecha: '04/03/2026' },
-  { id: 'LT-2845', cliente: 'Carga Sur', destino: 'Honduras', estado: 'En tránsito', fecha: '04/03/2026' },
-  { id: 'LT-2844', cliente: 'Logística Caribe', destino: 'Rep. Dom.', estado: 'Entregado', fecha: '03/03/2026' },
-]
+const loading = ref(true)
+const data = ref(null)
+
+const CIRC = 2 * Math.PI * 48
+
+function money(n) {
+  return new Intl.NumberFormat('es-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(n || 0))
+}
+
+function badgeClass(st) {
+  if (st === 'aprobada') return 'badge-success'
+  if (st === 'rechazada') return 'badge-danger'
+  return 'badge-warning'
+}
+
+function badgeLabel(st) {
+  if (st === 'aprobada') return 'Aprobada'
+  if (st === 'rechazada') return 'Rechazada'
+  return 'Pendiente'
+}
+
+const ventasMeses = computed(() => data.value?.ventas_meses?.values || [0, 0, 0, 0, 0, 0])
+const mesesLabels = computed(() => data.value?.ventas_meses?.labels || ['', '', '', '', '', ''])
+const chartMax = computed(() => Math.max(...ventasMeses.value, 1))
+
+const trendPct = computed(() => Number(data.value?.ventas_trend_pct || 0))
+const trendUp = computed(() => trendPct.value >= 0)
+
+const donut = computed(() => {
+  const p = data.value?.por_estado || {}
+  const a = Number(p.pct_aprobada || 0)
+  const pe = Number(p.pct_pendiente || 0)
+  const r = Number(p.pct_rechazada || 0)
+  const lenA = (a / 100) * CIRC
+  const lenP = (pe / 100) * CIRC
+  const lenR = (r / 100) * CIRC
+  return {
+    a,
+    pe,
+    r,
+    dashA: `${lenA} ${CIRC - lenA}`,
+    dashP: `${lenP} ${CIRC - lenP}`,
+    dashR: `${lenR} ${CIRC - lenR}`,
+    offA: 0,
+    offP: -lenA,
+    offR: -(lenA + lenP),
+  }
+})
+
+const recientes = computed(() => data.value?.recientes || [])
+
+async function load() {
+  loading.value = true
+  try {
+    data.value = await api.get('/api/cotizaciones-admin/dashboard')
+  } catch (e) {
+    data.value = null
+    await Swal.fire({
+      icon: 'error',
+      title: 'Dashboard',
+      text: e.message || 'No se pudieron cargar las métricas',
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
 </script>
 
 <template>
   <main class="main">
-      <header class="main-header">
-        <div>
-          <h1 class="main-title">Panel de control</h1>
-          <p class="main-subtitle">Resumen de ventas y actividad</p>
+    <header class="main-header">
+      <div>
+        <h1 class="main-title">Panel de control</h1>
+        <p class="main-subtitle">Resumen de cotizaciones, clientes e ingresos (datos reales)</p>
+      </div>
+      <button type="button" class="btn-refresh" :disabled="loading" @click="load">
+        {{ loading ? 'Cargando…' : 'Actualizar' }}
+      </button>
+    </header>
+
+    <div class="main-content">
+      <section class="quick-actions">
+        <h2 class="quick-actions-title">Acciones rápidas</h2>
+        <div class="quick-actions-grid">
+          <RouterLink :to="{ name: 'clientes', query: { nuevo: '1' } }" class="action-card">
+            <span class="action-icon">👤</span>
+            <span class="action-label">Nuevo cliente</span>
+            <span class="action-desc">Alta manual en la base de clientes</span>
+          </RouterLink>
+          <RouterLink :to="{ name: 'cotizaciones', query: { nueva: '1' } }" class="action-card action-card-highlight">
+            <span class="action-icon">📋</span>
+            <span class="action-label">Nueva cotización</span>
+            <span class="action-desc">Crear solicitud desde administración</span>
+          </RouterLink>
+          <RouterLink :to="{ name: 'catalogo-cotizaciones' }" class="action-card">
+            <span class="action-icon">📦</span>
+            <span class="action-label">Catálogo cotizar</span>
+            <span class="action-desc">Productos, rutas y servicios</span>
+          </RouterLink>
+          <RouterLink :to="{ name: 'cotizaciones' }" class="action-card">
+            <span class="action-icon">📑</span>
+            <span class="action-label">Cotizaciones</span>
+            <span class="action-desc">Listado y estados</span>
+          </RouterLink>
         </div>
-      </header>
+      </section>
 
-      <div class="main-content">
-        <section class="quick-actions">
-          <h2 class="quick-actions-title">Acciones rápidas</h2>
-          <div class="quick-actions-grid">
-            <RouterLink :to="{ name: 'clientes', query: { nuevo: '1' } }" class="action-card">
-              <span class="action-icon">👤</span>
-              <span class="action-label">Nuevo cliente</span>
-              <span class="action-desc">Alta manual en la base de clientes</span>
-            </RouterLink>
-            <RouterLink :to="{ name: 'cotizaciones', query: { nueva: '1' } }" class="action-card action-card-highlight">
-              <span class="action-icon">📋</span>
-              <span class="action-label">Nueva cotización</span>
-              <span class="action-desc">Crear solicitud desde administración</span>
-            </RouterLink>
-            <RouterLink :to="{ name: 'catalogo-cotizaciones' }" class="action-card">
-              <span class="action-icon">📦</span>
-              <span class="action-label">Catálogo cotizar</span>
-              <span class="action-desc">Productos, rutas y servicios</span>
-            </RouterLink>
-            <RouterLink :to="{ name: 'reportes' }" class="action-card">
-              <span class="action-icon">📋</span>
-              <span class="action-label">Reportes</span>
-              <span class="action-desc">Ventas, envios y lientes activos</span>
-            </RouterLink>
-          </div>
-        </section>
+      <div v-if="loading && !data" class="loading-block">Cargando métricas…</div>
 
-        <!-- Cards de métricas -->
+      <template v-else-if="data">
         <div class="stats-cards">
           <div class="stat-card stat-card-highlight">
             <div class="stat-card-header">
               <span class="stat-label">Ventas del mes</span>
-              <span class="stat-trend">↑ 12%</span>
+              <span class="stat-trend" :class="{ down: !trendUp }">
+                {{ trendUp ? '↑' : '↓' }} {{ Math.abs(trendPct) }}%
+              </span>
             </div>
-            <span class="stat-value">$ 24,580</span>
-            <span class="stat-sublabel">vs mes anterior</span>
+            <span class="stat-value">{{ money(data.ventas_mes) }}</span>
+            <span class="stat-sublabel">aprobadas vs mes anterior</span>
           </div>
           <div class="stat-card">
             <div class="stat-card-header">
-              <span class="stat-label">Envíos totales</span>
-              <span class="stat-icon stat-icon-blue">📦</span>
+              <span class="stat-label">Cotizaciones</span>
+              <span class="stat-icon">📦</span>
             </div>
-            <span class="stat-value">156</span>
+            <span class="stat-value">{{ data.cotizaciones_mes }}</span>
             <span class="stat-sublabel">este mes</span>
           </div>
           <div class="stat-card">
             <div class="stat-card-header">
               <span class="stat-label">Clientes nuevos</span>
-              <span class="stat-icon stat-icon-orange">👤</span>
+              <span class="stat-icon">👤</span>
             </div>
-            <span class="stat-value">23</span>
-            <span class="stat-sublabel">últimos 30 días</span>
+            <span class="stat-value">{{ data.clientes_nuevos_30d }}</span>
+            <span class="stat-sublabel">últimos 30 días · {{ data.clientes_totales }} total</span>
           </div>
           <div class="stat-card">
             <div class="stat-card-header">
               <span class="stat-label">Ingresos totales</span>
-              <span class="stat-icon stat-icon-green">💰</span>
+              <span class="stat-icon">💰</span>
             </div>
-            <span class="stat-value">$ 89,200</span>
-            <span class="stat-sublabel">acumulado</span>
+            <span class="stat-value">{{ money(data.ingresos_totales) }}</span>
+            <span class="stat-sublabel">cotizaciones aprobadas</span>
           </div>
         </div>
 
-        <!-- Gráficos -->
         <div class="charts-row">
           <div class="chart-card chart-card-bar">
-            <h2 class="chart-title">Ventas - Últimos 6 meses</h2>
+            <h2 class="chart-title">Ventas aprobadas — últimos 6 meses</h2>
             <div class="bar-chart-wrap">
               <svg class="bar-chart" viewBox="0 0 400 220" preserveAspectRatio="xMidYMid meet">
                 <defs>
@@ -96,75 +164,138 @@ const ultimosEnvios = [
                     <stop offset="100%" stop-color="var(--latitude-orange)" stop-opacity="1" />
                   </linearGradient>
                 </defs>
-                <!-- Grid -->
-                <line v-for="i in 5" :key="'h' + i" :y1="40 + (i - 1) * 36" :y2="40 + (i - 1) * 36" x1="40" x2="380" stroke="var(--latitude-blue-gray)" stroke-opacity="0.3" stroke-dasharray="4 4" />
-                <line v-for="i in 6" :key="'v' + i" :x1="40 + (i - 1) * 56" :x2="40 + (i - 1) * 56" y1="40" y2="196" stroke="var(--latitude-blue-gray)" stroke-opacity="0.2" />
-                <!-- Bars -->
+                <line
+                  v-for="i in 5"
+                  :key="'h' + i"
+                  :y1="40 + (i - 1) * 36"
+                  :y2="40 + (i - 1) * 36"
+                  x1="40"
+                  x2="380"
+                  stroke="var(--latitude-blue-gray)"
+                  stroke-opacity="0.3"
+                  stroke-dasharray="4 4"
+                />
                 <rect
                   v-for="(val, i) in ventasMeses"
                   :key="i"
                   :x="52 + i * 56"
-                  :y="196 - (val / 100) * 156"
+                  :y="196 - (val / chartMax) * 156"
                   width="32"
-                  :height="(val / 100) * 156"
+                  :height="Math.max((val / chartMax) * 156, 0)"
                   rx="4"
                   fill="url(#barGrad)"
                 />
-                <!-- Labels -->
-                <text v-for="(label, i) in mesesLabels" :key="'l' + i" :x="68 + i * 56" y="212" text-anchor="middle" font-size="11" fill="var(--latitude-deep-blue)" font-weight="600">{{ label }}</text>
+                <text
+                  v-for="(label, i) in mesesLabels"
+                  :key="'l' + i"
+                  :x="68 + i * 56"
+                  y="212"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="var(--latitude-deep-blue)"
+                  font-weight="600"
+                >
+                  {{ label }}
+                </text>
               </svg>
             </div>
           </div>
           <div class="chart-card chart-card-donut">
-            <h2 class="chart-title">Distribución de carga</h2>
+            <h2 class="chart-title">Cotizaciones por estado</h2>
             <div class="donut-wrap">
               <svg class="donut-chart" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="48" fill="none" stroke="var(--latitude-blue-gray)" stroke-width="14" stroke-opacity="0.3" />
-                <circle cx="60" cy="60" r="48" fill="none" stroke="var(--latitude-orange)" stroke-width="14" stroke-dasharray="135 245" stroke-dashoffset="-25" stroke-linecap="round" />
-                <circle cx="60" cy="60" r="48" fill="none" stroke="var(--latitude-deep-blue)" stroke-width="14" stroke-dasharray="110 270" stroke-dashoffset="-160" stroke-linecap="round" />
-                <circle cx="60" cy="60" r="48" fill="none" stroke="var(--latitude-blue-gray)" stroke-width="14" stroke-dasharray="70 310" stroke-dashoffset="-270" stroke-linecap="round" />
+                <circle cx="60" cy="60" r="48" fill="none" stroke="var(--latitude-blue-gray)" stroke-width="14" stroke-opacity="0.25" />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="48"
+                  fill="none"
+                  stroke="var(--latitude-orange)"
+                  stroke-width="14"
+                  :stroke-dasharray="donut.dashA"
+                  :stroke-dashoffset="donut.offA"
+                  stroke-linecap="butt"
+                  transform="rotate(-90 60 60)"
+                />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="48"
+                  fill="none"
+                  stroke="var(--latitude-deep-blue)"
+                  stroke-width="14"
+                  :stroke-dasharray="donut.dashP"
+                  :stroke-dashoffset="donut.offP"
+                  stroke-linecap="butt"
+                  transform="rotate(-90 60 60)"
+                />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="48"
+                  fill="none"
+                  stroke="#b91c1c"
+                  stroke-width="14"
+                  :stroke-dasharray="donut.dashR"
+                  :stroke-dashoffset="donut.offR"
+                  stroke-linecap="butt"
+                  transform="rotate(-90 60 60)"
+                />
               </svg>
               <div class="donut-legend">
-                <div class="donut-legend-item"><span class="dot dot-orange"></span> Terrestre 45%</div>
-                <div class="donut-legend-item"><span class="dot dot-blue"></span> Marítimo 35%</div>
-                <div class="donut-legend-item"><span class="dot dot-gray"></span> Aéreo 20%</div>
+                <div class="donut-legend-item">
+                  <span class="dot dot-orange"></span> Aprobada {{ donut.a }}%
+                </div>
+                <div class="donut-legend-item">
+                  <span class="dot dot-blue"></span> Pendiente {{ donut.pe }}%
+                </div>
+                <div class="donut-legend-item">
+                  <span class="dot dot-gray"></span> Rechazada {{ donut.r }}%
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Tabla últimos envíos -->
         <div class="panel panel-table">
-          <h2 class="panel-title">Últimos envíos</h2>
+          <h2 class="panel-title">Últimas cotizaciones</h2>
           <div class="table-wrap">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>Nº</th>
                   <th>Cliente</th>
                   <th>Destino</th>
                   <th>Estado</th>
+                  <th>Total</th>
                   <th>Fecha</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="envio in ultimosEnvios" :key="envio.id">
-                  <td><strong>{{ envio.id }}</strong></td>
-                  <td>{{ envio.cliente }}</td>
-                  <td>{{ envio.destino }}</td>
+                <tr v-for="row in recientes" :key="row.id">
                   <td>
-                    <span class="badge" :class="envio.estado === 'Entregado' ? 'badge-success' : 'badge-warning'">
-                      {{ envio.estado }}
-                    </span>
+                    <RouterLink :to="{ name: 'cotizaciones' }" class="link-num">
+                      <strong>{{ row.public_number }}</strong>
+                    </RouterLink>
                   </td>
-                  <td>{{ envio.fecha }}</td>
+                  <td>{{ row.cliente }}</td>
+                  <td>{{ row.destino }}</td>
+                  <td>
+                    <span class="badge" :class="badgeClass(row.status)">{{ badgeLabel(row.status) }}</span>
+                  </td>
+                  <td>{{ money(row.total) }}</td>
+                  <td>{{ row.fecha }}</td>
+                </tr>
+                <tr v-if="!recientes.length">
+                  <td colspan="6" class="empty">Aún no hay cotizaciones en la base de datos.</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-      </div>
-    </main>
+      </template>
+    </div>
+  </main>
 </template>
 
 <style scoped>
@@ -181,6 +312,11 @@ const ultimosEnvios = [
   padding: 1.5rem 2rem;
   border-bottom: 1px solid var(--border-color);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .main-title {
@@ -196,9 +332,30 @@ const ultimosEnvios = [
   color: var(--text-secondary);
 }
 
+.btn-refresh {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .main-content {
   padding: 2rem;
   flex: 1;
+}
+
+.loading-block {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
 }
 
 .quick-actions {
@@ -258,11 +415,10 @@ const ultimosEnvios = [
 
 @media (max-width: 900px) {
   .quick-actions-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
-/* Stats cards */
 .stats-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -276,12 +432,6 @@ const ultimosEnvios = [
   padding: 1.35rem;
   box-shadow: 0 4px 14px rgba(40, 74, 129, 0.08);
   border-left: 4px solid var(--latitude-blue-gray);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(40, 74, 129, 0.12);
 }
 
 .stat-card-highlight {
@@ -310,8 +460,8 @@ const ultimosEnvios = [
   color: #22c55e;
 }
 
-.stat-icon {
-  font-size: 1.1rem;
+.stat-trend.down {
+  color: #b91c1c;
 }
 
 .stat-value {
@@ -328,7 +478,6 @@ const ultimosEnvios = [
   margin-top: 0.2rem;
 }
 
-/* Charts */
 .charts-row {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -341,11 +490,6 @@ const ultimosEnvios = [
   border-radius: 14px;
   padding: 1.5rem;
   box-shadow: 0 4px 14px rgba(40, 74, 129, 0.08);
-  transition: box-shadow 0.2s;
-}
-
-.chart-card:hover {
-  box-shadow: 0 8px 24px rgba(40, 74, 129, 0.1);
 }
 
 .chart-title {
@@ -401,11 +545,16 @@ const ultimosEnvios = [
   border-radius: 50%;
 }
 
-.dot-orange { background: var(--latitude-orange); }
-.dot-blue { background: var(--latitude-deep-blue); }
-.dot-gray { background: var(--latitude-blue-gray); }
+.dot-orange {
+  background: var(--latitude-orange);
+}
+.dot-blue {
+  background: var(--latitude-deep-blue);
+}
+.dot-gray {
+  background: #b91c1c;
+}
 
-/* Table */
 .panel-table {
   background: var(--card-bg);
   border-radius: 14px;
@@ -449,6 +598,21 @@ const ultimosEnvios = [
   background: rgba(255, 153, 51, 0.06);
 }
 
+.link-num {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-num:hover {
+  color: var(--latitude-orange);
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 2rem !important;
+}
+
 .badge {
   display: inline-block;
   padding: 0.25rem 0.6rem;
@@ -467,6 +631,11 @@ const ultimosEnvios = [
   color: var(--latitude-orange);
 }
 
+.badge-danger {
+  background: rgba(185, 28, 28, 0.12);
+  color: #b91c1c;
+}
+
 @media (max-width: 1200px) {
   .stats-cards {
     grid-template-columns: repeat(2, 1fr);
@@ -477,7 +646,8 @@ const ultimosEnvios = [
 }
 
 @media (max-width: 768px) {
-  .stats-cards {
+  .stats-cards,
+  .quick-actions-grid {
     grid-template-columns: 1fr;
   }
   .donut-legend {
