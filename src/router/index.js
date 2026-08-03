@@ -27,12 +27,6 @@ const router = createRouter({
           meta: { title: 'Dashboard | Latitude Admin' },
         },
         {
-          path: 'envios',
-          name: 'envios',
-          component: () => import('../views/EnviosView.vue'),
-          meta: { title: 'Envíos | Latitude Admin' },
-        },
-        {
           path: 'clientes',
           name: 'clientes',
           component: () => import('../views/ClientesView.vue'),

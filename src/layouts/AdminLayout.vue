@@ -10,7 +10,6 @@ const auth = useAuthStore()
 
 const navItems = [
   { name: 'dashboard', path: '/admin/dashboard', label: 'Dashboard' },
-  { name: 'envios', path: '/admin/envios', label: 'Envíos' },
   { name: 'clientes', path: '/admin/clientes', label: 'Clientes' },
   { name: 'reportes', path: '/admin/reportes', label: 'Reportes' },
   { name: 'cotizaciones', path: '/admin/cotizaciones', label: 'Cotizaciones' },
